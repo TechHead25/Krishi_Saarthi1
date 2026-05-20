@@ -71,7 +71,8 @@ def analyze_with_plant_id(image_bytes: bytes):
 
     if not results:
         return {
-            "infected": False,
+            "infected": None,
+            "health_status": "unknown",
             "severity": "unknown",
             "disease_name": "No identification",
             "advice": "No confident identification from PlantNet.",
@@ -94,7 +95,8 @@ def analyze_with_plant_id(image_bytes: bytes):
         name = top.get("species", {}).get("scientificName", "Unknown") if isinstance(top.get("species"), dict) else "Unknown"
 
     return {
-        "infected": False,
+        "infected": None,
+        "health_status": "unknown",
         "severity": "unknown",
         "disease_name": name,
         "advice": "Identification from PlantNet (species match).",

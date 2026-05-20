@@ -17,6 +17,13 @@ const DiseaseDetection = () => {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const renderStatus = (result: any) => {
+    if (!result) return { label: '', icon: null, status: 'unknown' };
+    const status = result.health_status ?? (result.infected === true ? 'infected' : result.infected === false ? 'healthy' : 'unknown');
+    const label = status === 'unknown' ? 'Unknown' : t(status);
+    return { label, status };
+  };
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -120,44 +127,60 @@ const DiseaseDetection = () => {
       {result && (
         <div className="space-y-4 animate-scale-in">
           {/* Status Card */}
-          <div
-            className={cn(
-              "rounded-xl p-6 border-2",
-              result.infected
-                ? "bg-destructive/10 border-destructive/30"
-                : "bg-primary/10 border-primary/30"
-            )}
-          >
-            <div className="flex items-center gap-4">
+          {(() => {
+            const statusMeta = renderStatus(result);
+            const isInfected = statusMeta.status === 'infected';
+            const isHealthy = statusMeta.status === 'healthy';
+            const isUnknown = statusMeta.status === 'unknown';
+            return (
               <div
                 className={cn(
-                  "p-3 rounded-full",
-                  result.infected ? "bg-destructive/20" : "bg-primary/20"
+                  "rounded-xl p-6 border-2",
+                  isInfected
+                    ? "bg-destructive/10 border-destructive/30"
+                    : isUnknown
+                    ? "bg-muted/10 border-border"
+                    : "bg-primary/10 border-primary/30"
                 )}
               >
-                {result.infected ? (
-                  <AlertTriangle className="w-8 h-8 text-destructive" />
-                ) : (
-                  <CheckCircle2 className="w-8 h-8 text-primary" />
-                )}
+                <div className="flex items-center gap-4">
+                  <div
+                    className={cn(
+                      "p-3 rounded-full",
+                      isInfected
+                        ? "bg-destructive/20"
+                        : isUnknown
+                        ? "bg-muted/20"
+                        : "bg-primary/20"
+                    )}
+                  >
+                    {isInfected ? (
+                      <AlertTriangle className="w-8 h-8 text-destructive" />
+                    ) : isUnknown ? (
+                      <Lightbulb className="w-8 h-8 text-secondary" />
+                    ) : (
+                      <CheckCircle2 className="w-8 h-8 text-primary" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">
+                      {statusMeta.label}
+                    </h3>
+                    {result.severity && (
+                      <p className="text-sm text-muted-foreground">
+                        Severity: <span className="font-medium">{result.severity}</span>
+                      </p>
+                    )}
+                    {result.confidence && (
+                      <p className="text-sm text-muted-foreground">
+                        Confidence: <span className="font-medium">{result.confidence}%</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="text-xl font-bold">
-                  {result.infected ? t('infected') : t('healthy')}
-                </h3>
-                {result.severity && (
-                  <p className="text-sm text-muted-foreground">
-                    Severity: <span className="font-medium">{result.severity}</span>
-                  </p>
-                )}
-                {result.confidence && (
-                  <p className="text-sm text-muted-foreground">
-                    Confidence: <span className="font-medium">{result.confidence}%</span>
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Details */}
           <div className="grid md:grid-cols-2 gap-4">
