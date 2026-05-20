@@ -77,30 +77,38 @@ def analyze_with_plant_id(image_bytes: bytes):
             "disease_name": "No identification",
             "advice": "No confident identification from PlantNet.",
             "prevention": "Try a clearer image focusing on leaf or flower.",
-            "confidence": 0
+            "confidence": 0,
+            "plantnet": data,
+            "raw": data
         }
 
     top = results[0]
     score = top.get("score") or top.get("probability") or 0
     species = top.get("species") or top.get("plant") or top.get("taxonomy") or {}
-    common_names = species.get("commonNames") if isinstance(species, dict) else None
-    sci_name = species.get("scientificNameWithoutAuthor") if isinstance(species, dict) else None
+    common_names = species.get("commonNames") if isinstance(species, dict) else []
+    sci_name = species.get("scientificNameWithoutAuthor") if isinstance(species, dict) else species.get("scientificName") if isinstance(species, dict) else None
 
-    name = None
-    if common_names:
-        name = common_names[0]
-    if not name and sci_name:
-        name = sci_name
-    if not name:
-        name = top.get("species", {}).get("scientificName", "Unknown") if isinstance(top.get("species"), dict) else "Unknown"
+    # Prefer a human-friendly common name when available
+    species_common = common_names[0] if common_names else None
+    species_scientific = sci_name or None
+    species_family = species.get("family") if isinstance(species, dict) else None
 
     return {
+        # keep legacy keys for compatibility but also include PlantNet fields
         "infected": None,
         "health_status": "unknown",
         "severity": "unknown",
-        "disease_name": name,
+        "disease_name": species_common or species_scientific or "Unknown",
+        "species": {
+            "commonNames": common_names,
+            "scientificName": species_scientific,
+            "family": species_family
+        },
+        "top_score": float(score),
+        "confidence": round(float(score) * 100, 2),
         "advice": "Identification from PlantNet (species match).",
         "prevention": "N/A",
-        "confidence": round(float(score) * 100, 2),
-        "raw": top
+        "plantnet": data,
+        "raw": data,
+        "top_result": top
     }
