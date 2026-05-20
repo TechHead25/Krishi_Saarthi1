@@ -863,14 +863,20 @@ def section_disease():
                 st.error("Unexpected response from backend.")
                 st.json(data)
             else:
-                if data["infected"]:
+                if data["infected"] is True:
                     st.error(
                         f"Plant appears INFECTED (Severity: {data.get('severity','unknown')})"
                     )
-                else:
+                elif data["infected"] is False:
                     st.success("Plant appears HEALTHY")
+                else:
+                    st.info("This result is a species identification from PlantNet, not a disease diagnosis.")
 
-                st.write(f"**Disease / Condition:** {data.get('disease_name', 'N/A')}")
+                if data.get("species_name"):
+                    st.write(f"**Species:** {data.get('species_name')}")
+                if data["infected"] is not None:
+                    st.write(f"**Disease / Condition:** {data.get('disease_name', 'N/A')}")
+
                 st.write(f"**Advice:** {data.get('advice', 'N/A')}")
                 st.write(f"**Prevention:** {data.get('prevention', 'N/A')}")
                 if "confidence" in data:

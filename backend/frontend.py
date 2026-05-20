@@ -16,7 +16,7 @@ from weather import get_weather
 from optimizer import optimize_yield, get_fertilizer_names
 from crop_recommender import recommend_crop
 from market import get_best_market
-from plant import analyze_with_plant_id, _read_plantnet_key
+from plant import analyze_with_plant_id, analyze_leaf_health, _read_plantnet_key
 from fastapi.responses import RedirectResponse
 import pathlib
 import base64
@@ -404,32 +404,45 @@ async def disease_detect(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="Please upload a valid image.")
 
         img_bytes = await file.read()
-        result = analyze_with_plant_id(img_bytes)
-
-        if "infected" not in result:
-            return {
-                "infected": False,
+        health_result = analyze_leaf_health(img_bytes)
+        try:
+            species_result = analyze_with_plant_id(img_bytes)
+        except Exception:
+            species_result = {
+                "species_name": None,
+                "species": None,
+                "top_score": 0,
+                "confidence": 0,
+                "plantnet": None,
+                "raw": None,
+                "top_result": None,
+                "mode": "plantnet_error",
+                "diagnosis_type": "species",
+                "advice": "Species identification unavailable. Leaf health analysis completed.",
+                "prevention": "Try again later or configure PlantNet API key.",
+                "infected": None,
+                "health_status": "unknown",
                 "severity": "unknown",
-                "disease_name": "Unable to analyze",
-                "advice": "Image unclear or API unavailable.",
-                "prevention": "Try again with a clearer image.",
-                "confidence": 0
+                "disease_name": None
             }
 
-        return {
-            "filename": file.filename,
-            **result
-        }
+        # Merge species and leaf health analysis; health analysis takes precedence for diagnosis.
+        merged = {**species_result, **health_result}
+        merged["filename"] = file.filename
+
+        return merged
 
     except Exception as e:
         print("DISEASE API ERROR:", e)
         return {
-            "infected": False,
+            "infected": None,
             "severity": "unknown",
             "disease_name": "API Error",
             "advice": "Disease detection service is temporarily unavailable.",
             "prevention": "Please try again later.",
-            "confidence": 0
+            "confidence": 0,
+            "mode": "error",
+            "diagnosis_type": "error"
         }
 
 @app.get("/biology_info")

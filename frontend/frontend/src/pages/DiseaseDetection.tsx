@@ -22,7 +22,7 @@ const DiseaseDetection = () => {
     // Prefer explicit PlantNet species identification when present
     const speciesName = result.species_name || (result.species && (Array.isArray(result.species.commonNames) ? result.species.commonNames[0] : result.species.scientificName));
     if (speciesName && (result.health_status === 'unknown' || result.infected === null)) {
-      return { label: `Species: ${speciesName}`, status: 'species', speciesName };
+      return { label: `PlantNet species: ${speciesName}`, status: 'species', speciesName };
     }
 
     const status = result.health_status ?? (result.infected === true ? 'infected' : result.infected === false ? 'healthy' : 'unknown');

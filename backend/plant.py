@@ -3,6 +3,8 @@ import requests
 import os
 from typing import Optional
 from dotenv import load_dotenv
+from PIL import Image
+import numpy as np
 
 load_dotenv()
 
@@ -31,8 +33,9 @@ def _read_plantnet_key() -> Optional[str]:
 
 def analyze_with_plant_id(image_bytes: bytes):
     """
-    Identify plant/species using PlantNet API (demo). Expects an API key set via /plantnet/key
-    or PLANT_ID_API_KEY environment variable.
+    Identify plant/species using PlantNet API (demo).
+    This is a species identification helper only, not a plant disease classifier.
+    Expects an API key set via /plantnet/key or PLANT_ID_API_KEY environment variable.
     """
 
     api_key = _read_plantnet_key()
@@ -79,6 +82,8 @@ def analyze_with_plant_id(image_bytes: bytes):
             "advice": "No confident identification from PlantNet.",
             "prevention": "Try a clearer image focusing on leaf or flower.",
             "confidence": 0,
+            "mode": "plantnet_species",
+            "diagnosis_type": "species",
             "plantnet": data,
             "raw": data
         }
@@ -108,9 +113,120 @@ def analyze_with_plant_id(image_bytes: bytes):
         },
         "top_score": float(score),
         "confidence": round(float(score) * 100, 2),
+        "mode": "plantnet_species",
+        "diagnosis_type": "species",
         "advice": "Species identified by PlantNet (this is NOT a disease diagnosis).",
         "prevention": "N/A",
         "plantnet": data,
         "raw": data,
         "top_result": top
+    }
+
+
+def analyze_leaf_health(image_bytes: bytes):
+    """Analyze a leaf image for visual disease symptoms using color and discoloration heuristics."""
+    from io import BytesIO
+
+    try:
+        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+    except Exception:
+        return {
+            "infected": None,
+            "health_status": "unknown",
+            "severity": "unknown",
+            "disease_name": None,
+            "confidence": 0,
+            "advice": "Unable to read image for disease analysis.",
+            "prevention": "Please upload a clearer leaf photo.",
+            "mode": "heuristic_health",
+            "diagnosis_type": "health"
+        }
+
+    image = image.resize((256, 256), Image.LANCZOS)
+    arr = np.asarray(image).astype("float32") / 255.0
+    r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
+    maxc = np.maximum(np.maximum(r, g), b)
+    minc = np.minimum(np.minimum(r, g), b)
+    diff = maxc - minc
+    v = maxc
+    s = np.where(maxc > 0, diff / maxc, 0.0)
+
+    h = np.zeros_like(maxc)
+    mask = diff > 1e-6
+    idx = mask & (maxc == r)
+    h[idx] = (60.0 * ((g[idx] - b[idx]) / diff[idx]) + 360.0) % 360.0
+    idx = mask & (maxc == g)
+    h[idx] = (60.0 * ((b[idx] - r[idx]) / diff[idx]) + 120.0) % 360.0
+    idx = mask & (maxc == b)
+    h[idx] = (60.0 * ((r[idx] - g[idx]) / diff[idx]) + 240.0) % 360.0
+
+    leaf_mask = (diff > 0.08) & (v > 0.15)
+    leaf_pixels = int(np.count_nonzero(leaf_mask))
+    if leaf_pixels == 0:
+        return {
+            "infected": None,
+            "health_status": "unknown",
+            "severity": "unknown",
+            "disease_name": None,
+            "confidence": 0,
+            "advice": "Could not detect leaf area clearly.",
+            "prevention": "Try a closer, better-lit leaf image.",
+            "mode": "heuristic_health",
+            "diagnosis_type": "health"
+        }
+
+    green_mask = leaf_mask & (h >= 60) & (h <= 170) & (s > 0.25) & (v > 0.2)
+    yellow_mask = leaf_mask & (h >= 15) & (h <= 60) & (s > 0.22) & (v > 0.35)
+    brown_mask = leaf_mask & (h >= 5) & (h <= 40) & (s > 0.25) & (v < 0.6)
+    white_mask = leaf_mask & (s < 0.18) & (v > 0.75)
+
+    yellow_count = int(np.count_nonzero(yellow_mask))
+    brown_count = int(np.count_nonzero(brown_mask))
+    white_count = int(np.count_nonzero(white_mask))
+    green_count = int(np.count_nonzero(green_mask))
+    disease_count = int(np.count_nonzero((yellow_mask | brown_mask | white_mask) & ~green_mask))
+
+    disease_ratio = disease_count / leaf_pixels
+    green_ratio = green_count / leaf_pixels
+
+    if disease_ratio < 0.10 or green_ratio > 0.75:
+        infected = False
+        health_status = "healthy"
+        severity = "low"
+        advice = "Leaf appears healthy. Continue regular monitoring and crop care."
+        prevention = "Maintain proper watering, nutrition, and pest scouting."
+        disease_name = "Healthy leaf"
+    else:
+        infected = True
+        if disease_ratio < 0.20:
+            severity = "mild"
+        elif disease_ratio < 0.35:
+            severity = "moderate"
+        else:
+            severity = "severe"
+
+        if brown_count >= yellow_count and brown_count >= white_count:
+            disease_name = "Suspected leaf spot / blight"
+            advice = "Leaf discoloration matches common spot/blight symptoms. Inspect lesions and remove damaged tissue."
+        elif yellow_count > brown_count:
+            disease_name = "Suspected chlorosis or nutrient stress"
+            advice = "Yellowing suggests nutrient imbalance or early infection. Check soil nutrition and irrigation."
+        else:
+            disease_name = "Suspected leaf disease"
+            advice = "Leaf symptoms indicate a possible plant disease. Consult an agronomist for a precise diagnosis."
+
+        prevention = "Improve leaf hygiene, remove affected foliage, and use targeted treatment if needed."
+
+    confidence = round(min(1.0, disease_ratio * 3.0) * 100.0, 1)
+
+    return {
+        "infected": infected,
+        "health_status": "infected" if infected else "healthy",
+        "severity": severity,
+        "disease_name": disease_name,
+        "confidence": confidence,
+        "advice": advice,
+        "prevention": prevention,
+        "mode": "heuristic_health",
+        "diagnosis_type": "health"
     }
