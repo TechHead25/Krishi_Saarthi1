@@ -19,9 +19,25 @@ const DiseaseDetection = () => {
 
   const renderStatus = (result: any) => {
     if (!result) return { label: '', icon: null, status: 'unknown' };
+    // Prefer explicit PlantNet species identification when present
+    const speciesName = result.species_name || (result.species && (Array.isArray(result.species.commonNames) ? result.species.commonNames[0] : result.species.scientificName));
+    if (speciesName && (result.health_status === 'unknown' || result.infected === null)) {
+      return { label: `Species: ${speciesName}`, status: 'species', speciesName };
+    }
+
     const status = result.health_status ?? (result.infected === true ? 'infected' : result.infected === false ? 'healthy' : 'unknown');
     const label = status === 'unknown' ? 'Unknown' : t(status);
     return { label, status };
+  };
+
+  const handleCopyReport = async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(result, null, 2));
+      toast.success('Report copied to clipboard');
+    } catch (e) {
+      toast.error('Copy failed');
+    }
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,9 +179,14 @@ const DiseaseDetection = () => {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">
-                      {statusMeta.label}
-                    </h3>
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-bold">{statusMeta.label}</h3>
+                      {statusMeta.status === 'species' && (
+                        <Button size="sm" variant="outline" onClick={handleCopyReport} className="ml-2">
+                          Copy report
+                        </Button>
+                      )}
+                    </div>
                     {result.severity && (
                       <p className="text-sm text-muted-foreground">
                         Severity: <span className="font-medium">{result.severity}</span>
@@ -174,6 +195,11 @@ const DiseaseDetection = () => {
                     {result.confidence && (
                       <p className="text-sm text-muted-foreground">
                         Confidence: <span className="font-medium">{result.confidence}%</span>
+                      </p>
+                    )}
+                    {statusMeta.status === 'species' && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Note: This is a <strong>species identification</strong>, not a disease diagnosis. If the leaf looks diseased, upload a closer image of lesions or consult an agronomist.
                       </p>
                     )}
                   </div>
