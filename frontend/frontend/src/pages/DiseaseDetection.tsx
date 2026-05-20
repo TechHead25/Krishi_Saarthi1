@@ -184,13 +184,13 @@ const DiseaseDetection = () => {
 
           {/* Details */}
           <div className="grid md:grid-cols-2 gap-4">
-            {result.disease_name && (
+            {(result.disease_name || result.species_name || (result.species && (Array.isArray(result.species.commonNames) ? result.species.commonNames[0] : result.species.scientificName))) && (
               <div className="bg-card rounded-xl p-5 border border-border card-shadow">
                 <div className="flex items-center gap-2 mb-3">
                   <ShieldAlert className="w-5 h-5 text-destructive" />
-                  <h4 className="font-semibold text-foreground">{t('disease_name')}</h4>
+                  <h4 className="font-semibold text-foreground">{result.disease_name ? t('disease_name') : 'Species'}</h4>
                 </div>
-                <p className="text-foreground">{result.disease_name}</p>
+                <p className="text-foreground">{result.disease_name || result.species_name || (result.species && (Array.isArray(result.species.commonNames) ? result.species.commonNames[0] : result.species.scientificName))}</p>
               </div>
             )}
 

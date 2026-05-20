@@ -74,7 +74,8 @@ def analyze_with_plant_id(image_bytes: bytes):
             "infected": None,
             "health_status": "unknown",
             "severity": "unknown",
-            "disease_name": "No identification",
+            "disease_name": None,
+            "species_name": None,
             "advice": "No confident identification from PlantNet.",
             "prevention": "Try a clearer image focusing on leaf or flower.",
             "confidence": 0,
@@ -94,11 +95,12 @@ def analyze_with_plant_id(image_bytes: bytes):
     species_family = species.get("family") if isinstance(species, dict) else None
 
     return {
-        # keep legacy keys for compatibility but also include PlantNet fields
+        # keep legacy keys for compatibility but separate species vs disease
         "infected": None,
         "health_status": "unknown",
         "severity": "unknown",
-        "disease_name": species_common or species_scientific or "Unknown",
+        "disease_name": None,
+        "species_name": species_common or species_scientific or None,
         "species": {
             "commonNames": common_names,
             "scientificName": species_scientific,
@@ -106,7 +108,7 @@ def analyze_with_plant_id(image_bytes: bytes):
         },
         "top_score": float(score),
         "confidence": round(float(score) * 100, 2),
-        "advice": "Identification from PlantNet (species match).",
+        "advice": "Species identified by PlantNet (this is NOT a disease diagnosis).",
         "prevention": "N/A",
         "plantnet": data,
         "raw": data,
