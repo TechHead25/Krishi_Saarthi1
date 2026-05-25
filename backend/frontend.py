@@ -13,7 +13,7 @@ import xgboost as xgb
 from ai_chatbot import ai_chatbot_response
 from PIL import Image
 from weather import get_weather
-from optimizer import optimize_yield, get_fertilizer_names
+from optimizer import optimize_yield, get_fertilizer_names, get_fertilizer_npk
 from crop_recommender import recommend_crop
 from market import get_best_market
 from plant import analyze_with_plant_id, analyze_leaf_health, _read_plantnet_key
@@ -240,12 +240,14 @@ def recommend_crop_api(req: InputData):
                 best_irr = req.irrigation_mm
 
         fert_names = get_fertilizer_names(best_crop)
+        fert_npk = get_fertilizer_npk(best_crop, req.fertilizer_kg_per_ha)
 
         return {
             "recommended_crop": best_crop,
             "expected_yield_t_per_ha": round(best_yield, 3),
             "best_fertilizer_kg_per_ha": best_fert,
             "best_irrigation_mm": best_irr,
+            "fertilizer_npk_kg_per_ha": fert_npk,
             "recommended_fertilizer_names": fert_names,
             "weather_used": weather_data
         }
@@ -295,12 +297,14 @@ def optimize_yield_api(req: InputData):
                     best_irr = irr
 
         fert_names = get_fertilizer_names(req.crop)
+        fert_npk = get_fertilizer_npk(req.crop, best_fert)
 
         return {
             "crop": req.crop,
             "optimized_yield_t_per_ha": round(best_yield, 3),
             "best_fertilizer_kg_per_ha": best_fert,
             "best_irrigation_mm": best_irr,
+            "fertilizer_npk_kg_per_ha": fert_npk,
             "recommended_fertilizer_names": fert_names,
             "weather_used": weather_data,
         }
