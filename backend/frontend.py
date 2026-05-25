@@ -264,53 +264,24 @@ def recommend_crop_api(req: InputData):
 @app.post("/optimize_yield")
 def optimize_yield_api(req: InputData):
     try:
-        # ✅ Get weather
+        # ✅ Get weather and validate crop
         weather_data = get_weather(req.location)
 
-        # ✅ Validate crop
         if req.crop not in crop_encoder.classes_:
             raise ValueError(f"Unknown crop: {req.crop}")
 
-        crop_encoded = int(crop_encoder.transform([req.crop])[0])
+        payload = req.dict()
+        payload["crop"] = req.crop.lower()
 
-        best_yield = -1
-        best_fert = 0
-        best_irr = 0
-
-        # ✅ Search best fertilizer & irrigation
-        for fert in range(0, 501, 25):     # 0 → 500 kg/ha
-            for irr in range(0, 1001, 50): # 0 → 1000 mm
-
-                row = {
-                    "rainfall_mm": weather_data["rainfall_mm"],
-                    "avg_temp_c": weather_data["avg_temp_c"],
-                    "soil_ph": req.soil_ph,
-                    "nitrogen_ppm": req.nitrogen_ppm,
-                    "phosphorus_ppm": req.phosphorus_ppm,
-                    "potassium_ppm": req.potassium_ppm,
-                    "fertilizer_kg_per_ha": fert,
-                    "irrigation_mm": irr,
-                    "crop_encoded": crop_encoded,
-                }
-
-                x_input = np.array([[row[f] for f in FEATURES]])
-                dmat = xgb.DMatrix(x_input, feature_names=FEATURES)
-                pred_yield = float(model.predict(dmat)[0])
-
-                if pred_yield > best_yield:
-                    best_yield = pred_yield
-                    best_fert = fert
-                    best_irr = irr
-
+        optimized = optimize_yield(model, FEATURES, payload, budget_fert=500, budget_irr=1000)
         fert_names = get_fertilizer_names(req.crop)
-        fert_npk = get_fertilizer_npk(req.crop, best_fert)
 
         return {
             "crop": req.crop,
-            "optimized_yield_t_per_ha": round(best_yield, 3),
-            "best_fertilizer_kg_per_ha": best_fert,
-            "best_irrigation_mm": best_irr,
-            "fertilizer_npk_kg_per_ha": fert_npk,
+            "optimized_yield_t_per_ha": round(optimized["expected_yield_t_per_ha"], 3),
+            "best_fertilizer_kg_per_ha": optimized["best_fertilizer_kg_per_ha"],
+            "best_irrigation_mm": optimized["best_irrigation_mm"],
+            "fertilizer_npk_kg_per_ha": optimized["fertilizer_npk"],
             "recommended_fertilizer_names": fert_names,
             "weather_used": weather_data,
         }
