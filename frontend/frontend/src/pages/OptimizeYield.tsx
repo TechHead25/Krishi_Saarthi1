@@ -43,11 +43,11 @@ const OptimizeYield = () => {
       
       const data = await response.json();
       
-      if (response.ok) {
+      if (response.ok && !data.error) {
         setResult(data);
         toast.success('Optimization complete!');
       } else {
-        toast.error(data.detail || 'Optimization failed');
+        toast.error(data.detail || data.error || 'Optimization failed');
       }
     } catch (error) {
       toast.error('Connection error');

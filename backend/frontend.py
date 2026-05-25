@@ -223,7 +223,10 @@ def recommend_crop_api(req: InputData):
             row = {
                 "rainfall_mm": weather_data["rainfall_mm"],
                 "avg_temp_c": weather_data["avg_temp_c"],
-                "humidity_pct": weather_data["humidity_pct"],
+                "soil_ph": req.soil_ph,
+                "nitrogen_ppm": req.nitrogen_ppm,
+                "phosphorus_ppm": req.phosphorus_ppm,
+                "potassium_ppm": req.potassium_ppm,
                 "fertilizer_kg_per_ha": req.fertilizer_kg_per_ha,
                 "irrigation_mm": req.irrigation_mm,
                 "crop_encoded": crop_encoded
@@ -253,7 +256,7 @@ def recommend_crop_api(req: InputData):
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=400, detail=str(e))
 
 # ---------------------------
 # Optimize Yield
@@ -281,7 +284,10 @@ def optimize_yield_api(req: InputData):
                 row = {
                     "rainfall_mm": weather_data["rainfall_mm"],
                     "avg_temp_c": weather_data["avg_temp_c"],
-                    "humidity_pct": weather_data["humidity_pct"],
+                    "soil_ph": req.soil_ph,
+                    "nitrogen_ppm": req.nitrogen_ppm,
+                    "phosphorus_ppm": req.phosphorus_ppm,
+                    "potassium_ppm": req.potassium_ppm,
                     "fertilizer_kg_per_ha": fert,
                     "irrigation_mm": irr,
                     "crop_encoded": crop_encoded,
@@ -310,7 +316,7 @@ def optimize_yield_api(req: InputData):
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=400, detail=str(e))
 
 # ---------------------------
 # BEST MARKET ENDPOINT

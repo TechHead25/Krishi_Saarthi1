@@ -41,11 +41,11 @@ const RecommendCrop = () => {
       
       const data = await response.json();
       
-      if (response.ok) {
+      if (response.ok && !data.error) {
         setResult(data);
         toast.success('Recommendation complete!');
       } else {
-        toast.error(data.detail || 'Recommendation failed');
+        toast.error(data.detail || data.error || 'Recommendation failed');
       }
     } catch (error) {
       toast.error('Connection error');
